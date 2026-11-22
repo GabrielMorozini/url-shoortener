@@ -1,0 +1,84 @@
+service:
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: shoortener-api
+    restart: unless-stopped
+    working_dir: var/www
+    volumes:
+      - ./backend:/var/www
+    ports:
+      - "8000:8000"
+    depends_on:
+    - mysql
+    - redis
+    networks:
+    - shoortener-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: shoortener-front
+    restart: unless-stopped
+    volumes:
+    - ./frontend:/app
+    - ./app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - shoortener-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: url-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: url
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: laravel
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - shoortener-network
+
+  redis:
+    image: redis:alpine
+    container_name: shoortener-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - shoortener-network
+
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: shoortener-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: root
+    depends_on:
+      - mysql
+    networks:
+      - shoortener-network
+
+
+volumes:
+  mysql-data:
+
+
+networks:
+  instagram-network:
+    driver: bridge
