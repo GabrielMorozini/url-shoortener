@@ -8,17 +8,18 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('links', function (Blueprint $table) {
+        Schema::create('link_accesses', function (Blueprint $table) {
             $table->id();
-            $table->string('code', 10)->unique();
-            $table->text('original_url');
-            $table->unsignedBigInteger('clicks')->default(0);
-            $table->timestamps();
+            $table->foreignId('link_id')->constrained()->cascadeOnDelete();
+            $table->string('visitor_hash', 64);
+            $table->timestamp('created_at')->useCurrent();
+
+            $table->unique(['link_id', 'visitor_hash']);
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('links');
+        Schema::dropIfExists('link_accesses');
     }
 };

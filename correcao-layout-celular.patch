@@ -1,0 +1,168 @@
+diff --git a/frontend/src/App.css b/frontend/src/App.css
+index c44271a..33fff79 100644
+--- a/frontend/src/App.css
++++ b/frontend/src/App.css
+@@ -7,9 +7,13 @@
+   gap: 25px;
+ }
+ 
++form {
++  width: min(700px, 100%);
++}
++
+ .url-input {
+   display: flex;
+-  width: min(700px, 90vw);
++  width: 100%;
+   height: 60px;
+ }
+ 
+@@ -50,7 +54,7 @@
+ 
+ /* Mensagem de erro */
+ .error {
+-  width: min(700px, 90vw);
++  width: min(700px, 100%);
+   margin: 0;
+   color: #ef4444;
+   text-align: center;
+@@ -63,7 +67,7 @@
+   justify-content: center;
+   flex-wrap: wrap;
+   gap: 12px;
+-  width: min(700px, 90vw);
++  width: min(700px, 100%);
+   box-sizing: border-box;
+   padding: 16px;
+   border: 1px solid #aa3bff;
+@@ -94,8 +98,14 @@ h2 {
+   margin: 10px 0 0;
+ }
+ 
++/* A tabela rola dentro do wrapper em vez de estourar a página */
++.table-wrap {
++  width: min(700px, 100%);
++  overflow-x: auto;
++}
++
+ table {
+-  width: min(700px, 90vw);
++  width: 100%;
+   border-collapse: collapse;
+ }
+ 
+@@ -108,6 +118,7 @@ td {
+ 
+ td a {
+   color: #c98bff;
++  overflow-wrap: anywhere; /* links longos quebram em vez de alargar a tabela */
+ }
+ 
+ .original {
+@@ -124,7 +135,47 @@ td a {
+ 
+ @media (max-width: 1024px) {
+   #center {
++    min-width: 0;
+     padding: 32px 20px 24px;
+     gap: 18px;
+   }
++}
++
++/* Celular: cada linha da tabela vira um card */
++@media (max-width: 600px) {
++  thead {
++    display: none;
++  }
++
++  table,
++  tbody,
++  tr,
++  td {
++    display: block;
++    width: 100%;
++  }
++
++  tr {
++    padding: 12px 0;
++    border-bottom: 1px solid #444;
++    text-align: left;
++  }
++
++  td {
++    padding: 4px 0;
++    border: 0;
++  }
++
++  td::before {
++    content: attr(data-label);
++    display: block;
++    font-size: 12px;
++    text-transform: uppercase;
++    letter-spacing: 0.5px;
++    opacity: 0.6;
++  }
++
++  .original {
++    max-width: 100%;
++  }
+ }
+\ No newline at end of file
+diff --git a/frontend/src/App.tsx b/frontend/src/App.tsx
+index 86edf7c..7f35b85 100644
+--- a/frontend/src/App.tsx
++++ b/frontend/src/App.tsx
+@@ -112,28 +112,32 @@ function App() {
+       {links.length === 0 && <p className="empty">Nenhum link criado ainda.</p>}
+ 
+       {links.length > 0 && (
+-        <table>
+-          <thead>
+-            <tr>
+-              <th>Link curto</th>
+-              <th>URL original</th>
+-              <th>Cliques</th>
+-            </tr>
+-          </thead>
+-          <tbody>
+-            {links.map((link) => (
+-              <tr key={link.code}>
+-                <td>
+-                  <a href={link.short_url} target="_blank" rel="noreferrer">
+-                    {link.short_url}
+-                  </a>
+-                </td>
+-                <td className="original">{link.original_url}</td>
+-                <td>{link.clicks}</td>
++        <div className="table-wrap">
++          <table>
++            <thead>
++              <tr>
++                <th>Link curto</th>
++                <th>URL original</th>
++                <th>Cliques</th>
+               </tr>
+-            ))}
+-          </tbody>
+-        </table>
++            </thead>
++            <tbody>
++              {links.map((link) => (
++                <tr key={link.code}>
++                  <td data-label="Link curto">
++                    <a href={link.short_url} target="_blank" rel="noreferrer">
++                      {link.short_url}
++                    </a>
++                  </td>
++                  <td className="original" data-label="URL original">
++                    {link.original_url}
++                  </td>
++                  <td data-label="Cliques">{link.clicks}</td>
++                </tr>
++              ))}
++            </tbody>
++          </table>
++        </div>
+       )}
+     </main>
+   )
