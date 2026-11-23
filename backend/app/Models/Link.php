@@ -3,13 +3,16 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Link extends Model
 {
     protected $fillable = [
-        'code', 'original_url', 'clicks', 'expires_at', 'user_id', 'session_hash',
+        'code',
+        'original_url',
+        'clicks',
+        'expires_at',
+        'session_hash',
     ];
 
     protected function casts(): array
@@ -17,11 +20,6 @@ class Link extends Model
         return [
             'expires_at' => 'datetime',
         ];
-    }
-
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
     }
 
     public function accesses(): HasMany

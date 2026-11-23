@@ -12,15 +12,14 @@ use Illuminate\Support\Str;
 
 class LinkController extends Controller
 {
-    // Sessão: só os links criados nela. Admin: todos.
+    // Lista somente os links pertencentes à sessão atual
     public function index(Request $request): JsonResponse
     {
         $viewer = $this->viewer($request);
 
         $links = Link::query()
-            ->with('user:id,name,email')
+            ->where('session_hash', $viewer->sessionHash)
             ->withCount('accesses')
-            ->when(! $viewer->isAdmin(), fn ($q) => $q->where('session_hash', $viewer->sessionHash))
             ->latest()
             ->paginate(20);
 
@@ -29,7 +28,7 @@ class LinkController extends Controller
         );
     }
 
-    // Cria um link curto que expira em 1 semana
+    // Cria um link com validade de 7 dias
     public function store(Request $request): JsonResponse
     {
         $viewer = $this->viewer($request);
@@ -41,51 +40,73 @@ class LinkController extends Controller
         $link = Link::create([
             'code' => $this->generateCode(),
             'original_url' => $data['url'],
-            'expires_at' => now()->addWeek(),
-            'user_id' => $viewer->user?->id,
-            'session_hash' => $viewer->user ? null : $viewer->sessionHash,
+            'clicks' => 0,
+            'expires_at' => now()->addDays(7),
+            'session_hash' => $viewer->sessionHash,
         ]);
+
+        $link->loadCount('accesses');
 
         return response()->json($this->format($link, $viewer), 201);
     }
 
+    // Visualiza somente um link da sessão atual
     public function show(Request $request, Link $link): JsonResponse
     {
         $viewer = $this->viewer($request);
-        abort_unless($viewer->canView($link), 403, 'Você não pode ver este link.');
 
-        $link->loadCount('accesses')->load('user:id,name,email');
+        abort_unless(
+            $viewer->canView($link),
+            403,
+            'Você não pode ver este link.'
+        );
 
-        return response()->json($this->format($link, $viewer));
-    }
-
-    // Edita a URL de destino (código curto e validade não mudam)
-    public function update(Request $request, Link $link): JsonResponse
-    {
-        $viewer = $this->viewer($request);
-        abort_unless($viewer->owns($link), 403, 'Você só pode editar o seu próprio link.');
-
-        $data = $request->validate([
-            'url' => ['required', 'url:http,https', 'max:2048'],
-        ]);
-
-        $link->update(['original_url' => $data['url']]);
         $link->loadCount('accesses');
 
         return response()->json($this->format($link, $viewer));
     }
 
+    // Edita somente a URL original
+    public function update(Request $request, Link $link): JsonResponse
+    {
+        $viewer = $this->viewer($request);
+
+        abort_unless(
+            $viewer->owns($link),
+            403,
+            'Você só pode editar o seu próprio link.'
+        );
+
+        $data = $request->validate([
+            'url' => ['required', 'url:http,https', 'max:2048'],
+        ]);
+
+        $link->update([
+            'original_url' => $data['url'],
+        ]);
+
+        $link->loadCount('accesses');
+
+        return response()->json($this->format($link, $viewer));
+    }
+
+    // Apaga somente um link da sessão atual
     public function destroy(Request $request, Link $link): JsonResponse
     {
         $viewer = $this->viewer($request);
-        abort_unless($viewer->owns($link), 403, 'Você só pode apagar o seu próprio link.');
+
+        abort_unless(
+            $viewer->owns($link),
+            403,
+            'Você só pode apagar o seu próprio link.'
+        );
 
         $link->delete();
 
         return response()->json(null, 204);
     }
 
-    // Rota pública: redireciona, conta o acesso e recusa links expirados
+    // Redirecionamento público do link curto
     public function redirect(Request $request, string $code): RedirectResponse
     {
         $link = Link::where('code', $code)->firstOrFail();
@@ -96,7 +117,6 @@ class LinkController extends Controller
 
         $link->increment('clicks');
 
-        // "pessoa" = hash de IP + navegador; o índice único evita contar duas vezes
         LinkAccess::insertOrIgnore([
             'link_id' => $link->id,
             'visitor_hash' => hash_hmac(
@@ -110,39 +130,37 @@ class LinkController extends Controller
         return redirect()->away($link->original_url);
     }
 
-    // Exige token de admin válido OU um X-Session-Id válido
+    // Identifica a sessão anônima
     private function viewer(Request $request): Viewer
     {
         $viewer = Viewer::fromRequest($request);
 
-        abort_if($viewer->isAnonymous(), 401, 'Sessão inválida.');
+        abort_if(
+            $viewer->isAnonymous(),
+            401,
+            'Sessão inválida.'
+        );
 
         return $viewer;
     }
 
+    // Formata os dados enviados ao frontend
     private function format(Link $link, Viewer $viewer): array
     {
-        $data = [
+        return [
             'code' => $link->code,
             'original_url' => $link->original_url,
             'short_url' => url('/' . $link->code),
             'clicks' => $link->clicks,
-            'unique_visitors' => $link->accesses_count ?? $link->accesses()->count(),
+            'unique_visitors' => $link->accesses_count ?? 0,
             'expires_at' => $link->expires_at,
             'is_expired' => $link->isExpired(),
             'is_owner' => $viewer->owns($link),
             'created_at' => $link->created_at,
         ];
-
-        if ($viewer->isAdmin()) {
-            // null = link de visitante (sessão) ou link antigo
-            $data['owner'] = $link->user?->only(['id', 'name', 'email']);
-        }
-
-        return $data;
     }
 
-    // Gera um código aleatório que ainda não existe no banco
+    // Gera um código aleatório único
     private function generateCode(int $length = 6): string
     {
         do {
