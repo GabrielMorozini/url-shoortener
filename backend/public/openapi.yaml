@@ -1,0 +1,185 @@
+openapi: 3.0.3
+
+info:
+  title: URL Shortener API
+  description: |
+    API REST do encurtador de URL, feita com Laravel.
+
+    Fluxo de uso:
+    1. Envie a URL original em `POST /api/links` e receba o link curto.
+    2. Acesse `GET /{code}` para ser redirecionado para a URL original.
+       Cada acesso incrementa o contador de cliques.
+    3. Consulte os links recentes e os cliques em `GET /api/links`.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000
+    description: Ambiente local (Docker Compose)
+
+tags:
+  - name: Links
+    description: Criação e listagem de links curtos
+  - name: Redirecionamento
+    description: Acesso ao link curto
+  - name: Sistema
+    description: Status da API
+
+paths:
+  /:
+    get:
+      tags: [Sistema]
+      summary: Status da API
+      description: Retorna um JSON simples confirmando que a API está no ar.
+      responses:
+        '200':
+          description: API funcionando
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                    example: URL Shortener API
+                  status:
+                    type: string
+                    example: ok
+
+  /api/links:
+    get:
+      tags: [Links]
+      summary: Lista os links mais recentes
+      description: Retorna até 20 links, do mais novo para o mais antigo.
+      responses:
+        '200':
+          description: Lista de links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LinkItem'
+    post:
+      tags: [Links]
+      summary: Cria um link curto
+      description: |
+        Gera um código aleatório de 6 caracteres (letras e números), salva no banco
+        e devolve a URL curta. Apenas URLs `http` e `https` são aceitas.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLinkRequest'
+            example:
+              url: https://www.google.com
+      responses:
+        '201':
+          description: Link criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkCreated'
+        '422':
+          description: URL inválida ou ausente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /{code}:
+    get:
+      tags: [Redirecionamento]
+      summary: Redireciona para a URL original
+      description: |
+        Busca o código no banco, incrementa o contador de cliques e redireciona
+        (HTTP 302) para a URL original.
+
+        No botão "Try it out" o navegador segue o redirecionamento sozinho, então
+        a resposta 302 não aparece. Para ver o cabeçalho `Location`, use
+        `curl -i http://localhost:8000/{code}`.
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: Código curto com 6 letras e/ou números
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9]{6}$'
+          example: aB3xK9
+      responses:
+        '302':
+          description: Redireciona para a URL original
+          headers:
+            Location:
+              description: URL original
+              schema:
+                type: string
+                format: uri
+        '404':
+          description: Código não encontrado
+
+components:
+  schemas:
+    CreateLinkRequest:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: URL original (http ou https)
+          example: https://www.google.com
+
+    LinkCreated:
+      type: object
+      properties:
+        code:
+          type: string
+          example: aB3xK9
+        original_url:
+          type: string
+          format: uri
+          example: https://www.google.com
+        short_url:
+          type: string
+          format: uri
+          example: http://localhost:8000/aB3xK9
+
+    LinkItem:
+      type: object
+      properties:
+        code:
+          type: string
+          example: aB3xK9
+        original_url:
+          type: string
+          format: uri
+          example: https://www.google.com
+        short_url:
+          type: string
+          format: uri
+          example: http://localhost:8000/aB3xK9
+        clicks:
+          type: integer
+          example: 3
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-11-23T00:15:42.000000Z'
+
+    ValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+          example: The url field must be a valid URL.
+        errors:
+          type: object
+          properties:
+            url:
+              type: array
+              items:
+                type: string
+              example: ['The url field must be a valid URL.']
