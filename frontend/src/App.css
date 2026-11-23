@@ -43,6 +43,85 @@
   background: #8c26df;
 }
 
+.url-input button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* Mensagem de erro */
+.error {
+  width: min(700px, 90vw);
+  margin: 0;
+  color: #ef4444;
+  text-align: center;
+}
+
+/* Bloco com o link recém-criado */
+.result {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: min(700px, 90vw);
+  box-sizing: border-box;
+  padding: 16px;
+  border: 1px solid #aa3bff;
+  border-radius: 10px;
+  background: #202127;
+}
+
+.result a {
+  color: #c98bff;
+}
+
+.result button {
+  padding: 8px 18px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  background: #aa3bff;
+  color: white;
+  cursor: pointer;
+}
+
+.result button:hover {
+  background: #8c26df;
+}
+
+/* Lista de links recentes */
+h2 {
+  margin: 10px 0 0;
+}
+
+table {
+  width: min(700px, 90vw);
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #444;
+  text-align: left;
+}
+
+td a {
+  color: #c98bff;
+}
+
+.original {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  margin: 0;
+  opacity: 0.7;
+}
+
 @media (max-width: 1024px) {
   #center {
     padding: 32px 20px 24px;
