@@ -1,187 +1,160 @@
-# URL Shortener
+# 🔗 URL Shortener
 
-Encurtador de URL com **Laravel** (API), **React + TypeScript** (interface) e **MySQL**, tudo rodando em **Docker Compose**.
+Encurtador de URLs com API em **Laravel**, interface em **React + TypeScript** e ambiente containerizado com **Docker Compose**. Os dados ficam em **PostgreSQL**, hospedado no **Supabase**.
 
-Você cola uma URL longa, a API gera um código de 6 caracteres e devolve um link curto. Ao acessar o link curto, a API conta o clique e redireciona para a URL original.
+> Cole um link longo, receba um link curto e acompanhe quantas pessoas o acessaram.
 
-## Tecnologias
+**🌐 Demo:** [url-shoortener.vercel.app](https://url-shoortener.vercel.app/)
 
-| Camada | Tecnologia |
-| --- | --- |
-| API | Laravel (PHP 8.3) |
-| Banco de dados | MySQL 8 |
-| Frontend | React + TypeScript + Vite |
-| Infraestrutura | Docker e Docker Compose |
-| Documentação da API | OpenAPI 3 + Swagger UI |
+---
 
-Também estão no Compose o **phpMyAdmin** (para olhar o banco) e o **Redis** (disponível para cache, ainda não usado pela aplicação).
+## 📑 Sumário
 
-## Estrutura
+- [Sobre o projeto](#-sobre-o-projeto)
+- [Funcionalidades](#-funcionalidades)
+- [Regras de negócio](#-regras-de-negócio)
+- [Tecnologias](#-tecnologias)
+- [Arquitetura](#-arquitetura)
+- [Como executar](#-como-executar)
+- [Endpoints da API](#-endpoints-da-api)
+- [Estrutura de pastas](#-estrutura-de-pastas)
+- [Roadmap](#-roadmap)
+- [Autor](#-autor)
+
+---
+
+## 📖 Sobre o projeto
+
+O objetivo é transformar URLs longas em links curtos e fáceis de compartilhar, com controle de expiração e contagem de acessos. O projeto foi desenvolvido para praticar uma arquitetura moderna **API + SPA**, com foco em boas práticas de backend, gerenciamento de sessão e infraestrutura com containers.
+
+## ✨ Funcionalidades
+
+- Encurtamento de URLs longas em links curtos
+- Redirecionamento automático do link curto para o destino original
+- Contagem de acessos por link
+- Expiração automática dos links
+- Perfil de administrador com visão geral de todos os links
+- Interface web responsiva (desktop e mobile)
+
+## 📌 Regras de negócio
+
+| Regra | Descrição |
+|-------|-----------|
+| Expiração | Cada link expira **1 semana** após a criação |
+| Sem contas de usuário | Usuários comuns são identificados apenas por **sessão**; ao sair e voltar, o histórico anterior não é mantido |
+| Privacidade | Ninguém visualiza links de outras pessoas |
+| Edição e exclusão | Cada pessoa só edita e exclui os **próprios** links |
+| Estatísticas | O dono do link vê quantas pessoas o acessaram enquanto ele estiver ativo |
+| Administrador | Vê **todos** os links e suas estatísticas |
+
+## 🛠 Tecnologias
+
+**Backend**
+- PHP / Laravel (API REST)
+- PostgreSQL (Supabase)
+
+**Frontend**
+- React
+- TypeScript
+- Vite
+
+**Infraestrutura**
+- Docker e Docker Compose
+- Supabase (banco de dados gerenciado)
+- Vercel (deploy do frontend)
+
+## 🏗 Arquitetura
 
 ```
-url-shortener/
-├── compose.yaml
-├── README.md
-├── backend/                      # API Laravel
-│   ├── Dockerfile
-│   ├── app/
-│   │   ├── Http/Controllers/LinkController.php
-│   │   └── Models/Link.php
-│   ├── database/migrations/      # tabela links
-│   ├── routes/
-│   │   ├── api.php               # POST/GET /api/links
-│   │   └── web.php               # GET /{code} (redirecionamento)
-│   └── public/
-│       ├── openapi.yaml          # especificação da API
-│       └── swagger.html          # Swagger UI
-└── frontend/                     # React + TypeScript
-    ├── Dockerfile
-    └── src/App.tsx
+┌──────────────┐     HTTP/JSON     ┌──────────────┐      ┌─────────────────────┐
+│   Frontend   │ ────────────────► │   Backend    │ ───► │ PostgreSQL          │
+│ React + Vite │                   │ Laravel API  │      │ (Supabase)          │
+└──────────────┘                   └──────────────┘      └─────────────────────┘
 ```
 
-## Como rodar
+## 🚀 Como executar
 
-### Requisitos
+### Pré-requisitos
 
-- Docker
-- Docker Compose
+- [Docker](https://docs.docker.com/get-docker/) e [Docker Compose](https://docs.docker.com/compose/)
+- [Git](https://git-scm.com/)
 
 ### Passo a passo
 
-1. Configure o `.env` do backend:
+```bash
+# 1. Clone o repositório
+git clone https://github.com/GabrielMorozini/url-shoortener.git
+cd url-shoortener
 
-   ```bash
-   cp backend/.env.example backend/.env
-   ```
+# 2. Suba os containers
+docker compose up -d --build
 
-   Abra `backend/.env` e ajuste estas variáveis (os valores abaixo batem com o `compose.yaml`):
-
-   ```env
-   APP_URL=http://localhost:8000
-
-   DB_CONNECTION=mysql
-   DB_HOST=mysql
-   DB_PORT=3306
-   DB_DATABASE=shortener
-   DB_USERNAME=shortener
-   DB_PASSWORD=secret
-
-   REDIS_CLIENT=phpredis
-   REDIS_HOST=redis
-   REDIS_PORT=6379
-   ```
-
-   `DB_HOST` e `REDIS_HOST` são os **nomes dos serviços** do Compose, nunca `localhost`.
-
-2. Suba os containers:
-
-   ```bash
-   docker compose up -d --build
-   ```
-
-   Na primeira vez o backend roda o `composer install` ao iniciar, então demora um pouco. Acompanhe com:
-
-   ```bash
-   docker compose logs -f backend
-   ```
-
-   Quando o log mostrar que o servidor iniciou, siga para o próximo passo.
-
-3. Gere a chave da aplicação e crie as tabelas:
-
-   ```bash
-   docker compose exec backend php artisan key:generate
-   docker compose exec backend php artisan migrate
-   ```
-
-4. Pronto. Acesse:
-
-   | Serviço | Endereço |
-   | --- | --- |
-   | Interface (React) | http://localhost:5173 |
-   | API (Laravel) | http://localhost:8000 |
-   | Documentação (Swagger) | http://localhost:8000/swagger.html |
-   | phpMyAdmin | http://localhost:8080 |
+# 3. Rode as migrations
+docker compose exec backend php artisan migrate
+```
 
 ### Comandos úteis
 
 ```bash
-docker compose ps                    # estado dos containers
-docker compose logs -f backend       # logs da API
-docker compose down                  # para tudo
-docker compose down -v               # para tudo e apaga o banco
-docker compose exec backend php artisan migrate:fresh   # recria as tabelas (apaga os dados)
-docker compose exec backend php artisan route:list      # lista as rotas
+docker compose logs -f backend     # acompanhar logs
+docker compose down                # parar os containers
 ```
 
-## Endpoints da API
+## 📡 Endpoints da API
 
-A documentação interativa completa está em **http://localhost:8000/swagger.html**.
+> `[TODO: ajuste conforme as rotas reais em routes/api.php]`
 
 | Método | Rota | Descrição |
-| --- | --- | --- |
-| `GET` | `/` | Status da API |
-| `GET` | `/api/links` | Lista os 20 links mais recentes |
+|--------|------|-----------|
 | `POST` | `/api/links` | Cria um link curto |
-| `GET` | `/{code}` | Redireciona para a URL original e conta o clique |
+| `GET` | `/api/links` | Lista os links da sessão atual |
+| `PUT` | `/api/links/{id}` | Edita um link próprio |
+| `DELETE` | `/api/links/{id}` | Remove um link próprio |
+| `GET` | `/{codigo}` | Redireciona para a URL original e registra o acesso |
 
-### Criar um link curto
+**Exemplo de requisição**
 
 ```bash
-curl -X POST http://localhost:8000/api/links \
+curl -X POST http://localhost:[porta]/api/links \
   -H "Content-Type: application/json" \
-  -H "Accept: application/json" \
-  -d '{"url": "https://www.google.com"}'
+  -d '{"url": "https://exemplo.com/uma/url/muito/longa"}'
 ```
 
-Resposta (`201`):
+**Exemplo de resposta**
 
 ```json
 {
-  "code": "aB3xK9",
-  "original_url": "https://www.google.com",
-  "short_url": "http://localhost:8000/aB3xK9"
+  "id": 1,
+  "original_url": "https://exemplo.com/uma/url/muito/longa",
+  "short_url": "http://localhost:[porta]/aB3xYz",
+  "expires_at": "2026-11-30T12:00:00Z"
 }
 ```
 
-Se a URL for inválida, a API responde `422` com a mensagem de validação. Apenas URLs `http` e `https` são aceitas.
+## 📂 Estrutura de pastas
 
-### Listar links
-
-```bash
-curl http://localhost:8000/api/links -H "Accept: application/json"
+```
+url-shoortener/
+├── backend/             # API Laravel
+├── frontend/            # SPA React + TypeScript (Vite)
+├── compose.yaml         # Orquestração dos containers
+├── .gitignore
+└── README.md
 ```
 
-### Usar o link curto
+## 🗺 Roadmap
 
-Abra `http://localhost:8000/aB3xK9` no navegador, ou veja o redirecionamento pelo terminal:
+- [ ] Testes automatizados (backend e frontend)
+- [ ] CI com GitHub Actions
+- [ ] Documentação da API com Swagger/OpenAPI
+- [ ] Métricas de acesso mais detalhadas
 
-```bash
-curl -i http://localhost:8000/aB3xK9
-```
+## 👤 Autor
 
-A resposta é um `302` com o cabeçalho `Location` apontando para a URL original.
+**Gabriel Morozini**
 
-## Como funciona
+- GitHub: [@GabrielMorozini](https://github.com/GabrielMorozini)
 
-1. O React envia `POST /api/links` com a URL.
-2. O Laravel valida, gera um código aleatório que ainda não existe no banco (coluna `code` com índice único) e salva na tabela `links`.
-3. Quando alguém acessa `/{code}`, o Laravel busca o código, soma 1 em `clicks` e redireciona.
+---
 
-Tabela `links`:
-
-| Coluna | Tipo | Descrição |
-| --- | --- | --- |
-| `id` | bigint | Chave primária |
-| `code` | varchar(10), único | Código curto |
-| `original_url` | text | URL original |
-| `clicks` | bigint | Quantidade de acessos |
-| `created_at`, `updated_at` | timestamp | Datas |
-
-## Próximos passos
-
-- Alias personalizado para o link curto
-- Reaproveitar o link quando a mesma URL já foi encurtada
-- Data de expiração dos links
-- Limite de requisições (rate limit) na criação
-- Testes automatizados da API
+⭐ Se este projeto te ajudou, deixe uma estrela no repositório!
